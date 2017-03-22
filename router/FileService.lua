@@ -53,9 +53,11 @@ end
 function _M.get()
     local uri = ngx_var.uri
     local m, err = ngx.re.match(uri, "/(?<bn>.*?)/(?<filename>[A-Za-z0-9_/.]+)")
+
     if m then
         local bn = m["bn"]
         local filename = m["filename"]
+
         local obj = mongoOperate:new(bn)
         local dbfile = obj:get(filename)
         if not dbfile then
@@ -68,6 +70,11 @@ function _M.get()
         if dbfile.content_type then resp_header['Content-Type']=dbfile.content_type end
         if dbfile.file_size then resp_header['Content-Length']=dbfile.file_size end
         ngx.say(dbfile:read())
+
+    else
+        ngx.say("not found filename in uri")
+        ngx.exit(200)
+        return
     end
 
     ngx.exit(404)
