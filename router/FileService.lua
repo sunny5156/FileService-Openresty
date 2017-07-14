@@ -23,6 +23,27 @@ local function gen_cache_control_headers(ts)
     resp_header["Cache-Control"] = "max-age=3600"
 end
 
+local function my_get_file_name(str)
+    --local filename,err = ngx.re.match(res,'(.*)filename="(.*)"(.*)')
+    local fileInfo,err = ngx.re.match(str, "form-data; name=\"file\"; filename=\"(?<filename>[A-Za-z0-9_/.]+)\"")
+    if fileInfo then
+        return fileInfo[1]
+    end
+end
+
+local function debug(data)
+
+  for k,v in pairs(data) do
+    if type(v) == "table" then
+      ngx.say(k,":",table.concat(v,","),"</br>")
+    else
+      ngx.say(k,":",v,"</br>")
+    end
+  end
+
+end
+
+
 --启动类
 --路由分发
 
@@ -118,7 +139,7 @@ function _M.post()
     if not f then
         f, err = obj:put(filename)
     end
---    ngx.say(f)
+    --debug(f)
     if not f then
         ngx.log(ngx.ERR, "failed to put object: ", err)
         ngx.exit(500)
@@ -127,9 +148,9 @@ function _M.post()
 
     while true do
         local typ, res, err = form:read()
-        if typ == "header" then
-          ngx.say(res[2])
-        end
+--        if typ == "header" then
+--          ngx.say(res[2])
+--        end
         --ngx.say(typ)
         if not typ then
             ngx.log(ngx.ERR, "failed to read: ", err)
@@ -137,13 +158,13 @@ function _M.post()
             return
         end
         if typ == "header" then
-            ngx.say(res[1]);
+            if res[1] == 'Content-Disposition' then
+              originFileName = my_get_file_name(res[2])
+            end
+
             if res[1] == "Content-Type" then
                 meta["contentType"] = res[2]
             end
---            if res[1] == 'filename' then
---                originFileName = res[2]
---            end
         end
         if typ == "body" then
             blob = blob..res
@@ -157,39 +178,40 @@ function _M.post()
 
     --ngx.say(originFileName)
 
-    f:write(blob, 0)
+    local fres = f:write(blob, 0)
+    --ngx.say("fres:"..fres)
     f:update_md5()
     f:update_meta(meta)
 
 
     --写入mysql
---    local db, err = mysql:new()
---    if not db then
---        ngx.say("failed to instantiate mysql: ", err)
---        ngx.log(ngx.ERR, "failed to read: ", err)
---        return
---    end
---
---    db:set_timeout(1000) -- 1 sec
---
---    local ok, err, errcode, sqlstate = db:connect(config.default.MYSQL)
---
---    if not ok then
---        ngx.say("failed to connect: ", err, ": ", errcode, " ", sqlstate)
---        return
---    end
---
---    ngx.say("connected to mysql.")
---
---    local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
---    "VALUES  ('"..meta["contentType"].."','"..filename.."',"..meta["length"]..",'savepath','savename','ext','hash' );"
---
---    local res, err, errcode, sqlstate =
---        db:query(insertSQL)
---    if not res then
---        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
---        return
---    end
+    local db, err = mysql:new()
+    if not db then
+        ngx.say("failed to instantiate mysql: ", err)
+        ngx.log(ngx.ERR, "failed to read: ", err)
+        return
+    end
+
+    db:set_timeout(1000) -- 1 sec
+
+    local ok, err, errcode, sqlstate = db:connect(config.default.MYSQL)
+
+    if not ok then
+        ngx.say("failed to connect: ", err, ": ", errcode, " ", sqlstate)
+        return
+    end
+
+    --ngx.say("connected to mysql.")
+
+    local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
+    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',123,'savepath','savename','ext','hash' );"
+    ngx.print(insertSQL)
+    local res, err, errcode, sqlstate =
+        db:query(insertSQL)
+    if not res then
+        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
+        return
+    end
 
 --    local res, err, errcode, sqlstate =
 --        db:query("drop table if exists cats")
