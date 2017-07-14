@@ -7,10 +7,15 @@ local mongoOperate = require "models.mongoOperate" --mongo操作
 local upload = require "resty.upload"  --上传
 local md5 = require "resty.md5" --md5
 local cjson = require "cjson"  --json扩展
+local mysql = require "resty.mysql" --mysql扩展
+
 local http_time = ngx.http_time --http 时间
 local resp_header = ngx.header  --nginx 请求包头
 local ngx_var = ngx.var --nginx 参数
 local method = ngx.var.request_method --nginx 请求方法
+
+local config = require "conf.config" -- 配置文件
+
 
 
 local function gen_cache_control_headers(ts)
@@ -25,6 +30,9 @@ function _M.run()
     local uri = ngx_var.uri
     if uri == "/" then
         resp_header["Cache-Control"] = "max-age=3600"
+        --local res = ngx.location.capture("/index.html", {})
+        -- ngx.say(res.body)
+        --return
         return ngx.say("<h1>Static server by FileService-Openresty!!!</h1>")
     end
 
@@ -93,9 +101,11 @@ function _M.post()
     end
     local bn = m["bn"]
     local filename = m["filename"]
---    ngx.say(filename)
+    --ngx.say(filename)
     local form, err = upload:new()
+    local db,err = mysql:new()
     local blob = ""
+    local originFileName = ""
     if not form then
         ngx.log(ngx.ERR, "failed to new upload: ", err)
         ngx.exit(500)
@@ -108,6 +118,7 @@ function _M.post()
     if not f then
         f, err = obj:put(filename)
     end
+--    ngx.say(f)
     if not f then
         ngx.log(ngx.ERR, "failed to put object: ", err)
         ngx.exit(500)
@@ -116,15 +127,23 @@ function _M.post()
 
     while true do
         local typ, res, err = form:read()
+        if typ == "header" then
+          ngx.say(res[2])
+        end
+        --ngx.say(typ)
         if not typ then
             ngx.log(ngx.ERR, "failed to read: ", err)
             ngx.exit(500)
             return
         end
         if typ == "header" then
+            ngx.say(res[1]);
             if res[1] == "Content-Type" then
                 meta["contentType"] = res[2]
             end
+--            if res[1] == 'filename' then
+--                originFileName = res[2]
+--            end
         end
         if typ == "body" then
             blob = blob..res
@@ -134,9 +153,52 @@ function _M.post()
         end
     end
 
+    --ngx.exit(500)
+
+    --ngx.say(originFileName)
+
     f:write(blob, 0)
     f:update_md5()
     f:update_meta(meta)
+
+
+    --写入mysql
+--    local db, err = mysql:new()
+--    if not db then
+--        ngx.say("failed to instantiate mysql: ", err)
+--        ngx.log(ngx.ERR, "failed to read: ", err)
+--        return
+--    end
+--
+--    db:set_timeout(1000) -- 1 sec
+--
+--    local ok, err, errcode, sqlstate = db:connect(config.default.MYSQL)
+--
+--    if not ok then
+--        ngx.say("failed to connect: ", err, ": ", errcode, " ", sqlstate)
+--        return
+--    end
+--
+--    ngx.say("connected to mysql.")
+--
+--    local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
+--    "VALUES  ('"..meta["contentType"].."','"..filename.."',"..meta["length"]..",'savepath','savename','ext','hash' );"
+--
+--    local res, err, errcode, sqlstate =
+--        db:query(insertSQL)
+--    if not res then
+--        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
+--        return
+--    end
+
+--    local res, err, errcode, sqlstate =
+--        db:query("drop table if exists cats")
+--    if not res then
+--        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
+--        return
+--    end
+
+    --ngx.print(cjson.encode(meta));
     ngx.exit(200)
 end
 
