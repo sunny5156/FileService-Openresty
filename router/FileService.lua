@@ -58,16 +58,18 @@ end
 
 function _M.run()
     local uri = ngx_var.uri
-    if uri == "/" then
-        resp_header["Cache-Control"] = "max-age=3600"
-        --local res = ngx.location.capture("/index.html", {})
-        -- ngx.say(res.body)
-        --return
-        return ngx.say("<h1>Static server by FileService-Openresty!!!</h1>")
-    end
 
     if "GET" == method then
-        return _M.get()
+        --首页
+        if uri == "/" then
+            resp_header["Cache-Control"] = "max-age=3600"
+            --local res = ngx.location.capture("/index.html", {})
+            -- ngx.say(res.body)
+            --return
+            return ngx.say("<h1>Static server by FileService-Openresty!!!</h1>")
+        else
+          return _M.get()
+        end
     end
 
     if "HEAD" == method then
@@ -126,12 +128,21 @@ function _M.post()
     local uri = ngx_var.uri
     local f, err
     local m, err = ngx.re.match(uri, "/(?<bn>.*?)/(?<filename>[A-Za-z0-9_/.]+)")
+    local ext
     if not m then
         ngx.exit(404)
     end
+
     local bn = m["bn"]
     local filename = m["filename"]
-    --ngx.say(filename)
+
+--    if not bn then
+--      bn = "default/12/"
+--    end
+--    if not filename then
+--      filename = ngx.md5( bn.. ngx.now())
+--    end
+--    ngx.say(filename)
     local form, err = upload:new()
     local db,err = mysql:new()
     local blob = ""
@@ -148,13 +159,13 @@ function _M.post()
     if not f then
         f, err = obj:put(filename)
     end
-    --debug(f)
     if not f then
         ngx.log(ngx.ERR, "failed to put object: ", err)
         ngx.exit(500)
         return
     end
 
+    --读取文件内容
     while true do
         local typ, res, err = form:read()
 
@@ -166,6 +177,7 @@ function _M.post()
         if typ == "header" then
             if res[1] == 'Content-Disposition' then
               originFileName = my_get_file_name(res[2])
+              ext = get_ext(originFileName)
             end
 
             if res[1] == "Content-Type" then
@@ -180,13 +192,13 @@ function _M.post()
         end
     end
 
-
+    --更新文件
     local fres = f:write(blob, 0)
 
+    --更新文件名
+    meta["filename"] = ngx.md5( bn.. ngx.now()).."."..ext
     f:update_md5()
     f:update_meta(meta)
-
-    debug(f)
 
     --写入mysql
     local db, err = mysql:new()
@@ -208,8 +220,8 @@ function _M.post()
     --ngx.say("connected to mysql.")
 
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
-    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..filename.."','"..filename.."','ext','hash' );"
-    ngx.print(insertSQL)
+    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..meta["filename"].."','"..meta["filename"].."','"..ext.."','hash' );"
+--    ngx.print(insertSQL)
     local res, err, errcode, sqlstate =
         db:query(insertSQL)
     if not res then
@@ -223,8 +235,10 @@ function _M.post()
 --        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
 --        return
 --    end
-
-    --ngx.print(cjson.encode(meta));
+--    local result =  {}
+--    result.filename = mate["filename"]
+--    result.savePath = bn.."/"..mate["filename"]
+    ngx.print(cjson.encode(meta))
     ngx.exit(200)
 end
 
