@@ -196,7 +196,7 @@ function _M.post()
     local fres = f:write(blob, 0)
 
     --更新文件名
-    meta["filename"] = ngx.md5( bn.. ngx.now()).."."..ext
+    --meta["filename"] = ngx.md5( bn.. ngx.now()).."."..ext
     f:update_md5()
     f:update_meta(meta)
 
