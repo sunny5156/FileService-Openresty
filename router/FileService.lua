@@ -224,7 +224,7 @@ function _M.post()
 
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
     "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..filename.."','"..filename.."','"..ext.."','hash' );"
-    ngx.print(insertSQL)
+    ngx.log(ngx.ERR,insertSQL)
     local res, err, errcode, sqlstate =  db:query(insertSQL)
     if not res then
         ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
