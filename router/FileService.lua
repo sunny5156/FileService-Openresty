@@ -137,7 +137,7 @@ function _M.post()
     local filename = m["filename"]
 
 --    if not bn then
---      bn = "default/12/"
+--      bn = "default"
 --    end
 --    if not filename then
 --      filename = ngx.md5( bn.. ngx.now())
