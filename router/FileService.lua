@@ -223,7 +223,7 @@ function _M.post()
     --ngx.say("connected to mysql.")
 
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
-    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..meta["filename"].."','"..meta["filename"].."','"..ext.."','hash' );"
+    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..filename.."','"..filename.."','"..ext.."','hash' );"
     ngx.print(insertSQL)
     local res, err, errcode, sqlstate =  db:query(insertSQL)
     if not res then
