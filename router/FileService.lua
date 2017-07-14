@@ -33,14 +33,23 @@ end
 
 local function debug(data)
 
-  for k,v in pairs(data) do
-    if type(v) == "table" then
-      ngx.say(k,":",table.concat(v,","),"</br>")
-    else
-      ngx.say(k,":",v,"</br>")
+  if type(data) == "table" then
+    for k,v in pairs(data) do
+      if type(v) == "table" then
+        ngx.say(k,":",table.concat(v,","),"</br>")
+      else
+        ngx.say(k,":",v,"</br>")
+      end
     end
+  else
+    ngx.say(data)
   end
+end
 
+
+--获取扩展名
+function get_ext(str)
+    return str:match(".+%.(%w+)$")
 end
 
 
@@ -148,10 +157,7 @@ function _M.post()
 
     while true do
         local typ, res, err = form:read()
---        if typ == "header" then
---          ngx.say(res[2])
---        end
-        --ngx.say(typ)
+
         if not typ then
             ngx.log(ngx.ERR, "failed to read: ", err)
             ngx.exit(500)
@@ -174,15 +180,13 @@ function _M.post()
         end
     end
 
-    --ngx.exit(500)
-
-    --ngx.say(originFileName)
 
     local fres = f:write(blob, 0)
-    --ngx.say("fres:"..fres)
+
     f:update_md5()
     f:update_meta(meta)
 
+    debug(f)
 
     --写入mysql
     local db, err = mysql:new()
@@ -204,7 +208,7 @@ function _M.post()
     --ngx.say("connected to mysql.")
 
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`) "..
-    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',123,'savepath','savename','ext','hash' );"
+    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..filename.."','"..filename.."','ext','hash' );"
     ngx.print(insertSQL)
     local res, err, errcode, sqlstate =
         db:query(insertSQL)
