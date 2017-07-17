@@ -259,7 +259,7 @@ function _M.post()
 
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`,`create_time`,`update_time`) "..
     "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..size..",'"..bn.."/"..filename.."','"..filename.."','"..ext.."','hash',"..ngx.time()..","..ngx.time()..");"
-    ngx.log(ngx.ERR,insertSQL)
+
     db:query("SET NAMES utf8") --设置字符编码
     local res, err, errcode, sqlstate =  db:query(insertSQL)
     if not res then
@@ -267,16 +267,9 @@ function _M.post()
         return
     end
 
---    local res, err, errcode, sqlstate =
---        db:query("drop table if exists cats")
---    if not res then
---        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
---        return
---    end
     local result =  {}
     result["filename"] = filename
     result["savepath"] = bn.."/"..filename
-    debug(ngx.var)
     ngx.print(cjson.encode(result))
     ngx.exit(200)
 end
