@@ -25,7 +25,7 @@ end
 
 local function my_get_file_name(str)
     --local filename,err = ngx.re.match(res,'(.*)filename="(.*)"(.*)')
-    local fileInfo,err = ngx.re.match(str, "form-data; name=\"file\"; filename=\"(?<filename>[A-Za-z0-9_/.]+)\"")
+    local fileInfo,err = ngx.re.match(str, "form-data; name=\"file\"; filename=\"(.+)(.*)\"")
     if fileInfo then
         return fileInfo[1]
     end
@@ -213,7 +213,7 @@ function _M.post()
     f:update_meta(meta)
 
 --    debug(meta)
---    debug(f)
+    debug(f)
 
     --写入mysql
     local db, err = mysql:new()
@@ -237,6 +237,7 @@ function _M.post()
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`,`create_time`,`update_time`) "..
     "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..size..",'"..bn.."/"..filename.."','"..filename.."','"..ext.."','hash',"..ngx.time()..","..ngx.time()..");"
     ngx.log(ngx.ERR,insertSQL)
+    db:query("SET NAMES utf8") --设置字符编码
     local res, err, errcode, sqlstate =  db:query(insertSQL)
     if not res then
         ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
