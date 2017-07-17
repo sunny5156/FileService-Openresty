@@ -1,11 +1,12 @@
 # FileService-Openresty
 
-##配置文件
+## 配置文件
 ```
 ##nginx 配置文件,copy到 openresty 配置目录中##
 server {
 	lua_code_cache off;
 	listen 8090;
+    charset utf-8;
 	server_name  localhost;
 	location / {
 		default_type text/html;
@@ -15,9 +16,9 @@ server {
 
 ```
 
-##访问
+## 访问
 
-##使用方法
+## 使用方法
 
 上传以及更新 curl -F file=@delinfo.txt http://{domain}{:port}/{bucket}/{file.png}
 下载 wget http://{domain}{:port}/bucket/file.png
@@ -48,4 +49,19 @@ server {
     //echo json_decode($result);
 ?>
 ```
+
+## 修改init.lua
+
+```
+--服务启动文件
+--author sunny5156
+
+local path = "{FileService Project Path}"  --修改这里
+local m_package_path = package.path
+package.path = string.format("%s?.lua;%s?/init.lua;%s",path, path, m_package_path)
+local FS = require "router.FileService"
+FS.run()
+
+```
+
 
