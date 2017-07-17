@@ -9,6 +9,11 @@ _M.default = {
     password = "",
     charset = "utf8",
     max_packet_size = 1024 * 1024,
+  },
+
+  MONGO = {
+    host = "127.0.0.1",
+    port = 27017,
   }
 
 }

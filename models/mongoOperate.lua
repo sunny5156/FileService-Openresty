@@ -7,9 +7,11 @@ _M.__index = _M
 --引入mongo扩展
 local mongol = require "resty.mongol"
 
+local config = require "conf.config"
+
 function _M:new(bucket_name)
     local conn = mongol:new()
-    local ok, err = conn:connect("127.0.0.1", tonumber(27017))
+    local ok, err = conn:connect(config.default.MONGO.host, tonumber(config.default.MONGO.port))
     if not ok then
         ngx.log(ngx.ERR, "failed to connect db: ", err)
         ngx.exit(500)
