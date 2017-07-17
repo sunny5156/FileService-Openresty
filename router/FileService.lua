@@ -44,6 +44,7 @@ local function debug(data)
   else
     ngx.say(data)
   end
+
 end
 
 
@@ -93,6 +94,7 @@ end
 function _M.get()
     local uri = ngx_var.uri
     local m, err = ngx.re.match(uri, "/(?<bn>.*?)/(?<filename>[A-Za-z0-9_/.]+)")
+--    local m, err = ngx.re.match(uri, "/(?<bn>.*?)/(?<filename>.*?)")
 
     if m then
         local bn = m["bn"]
@@ -107,6 +109,30 @@ function _M.get()
         if dbfile.last_modified then
             gen_cache_control_headers(dbfile.last_modified)
         end
+
+        --获取mysql数据
+        local db, err = mysql:new()
+        if not db then
+            ngx.say("failed to instantiate mysql: ", err)
+            ngx.log(ngx.ERR, "failed to read: ", err)
+            return
+        end
+        db:set_timeout(1000) -- 1 sec
+        local ok, err, errcode, sqlstate = db:connect(config.default.MYSQL)
+        if not ok then
+            ngx.say("failed to connect: ", err, ": ", errcode, " ", sqlstate)
+            return
+        end
+        --ngx.say("connected to mysql.")
+        local sql = "SELECT `id`,`type`,`name`,`size`,`savepath`,`savename`,`ext`,`hash`,`create_time`,`update_time` FROM `fs_attachment` WHERE `savename` = '"..filename.."'"
+        local res, err, errcode, sqlstate =  db:query(sql)
+        if not res then
+            ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
+            return
+        end
+
+        --if res[1] then resp_header['Content-Disposition']="attachment;  filename="..res[1].name end
+
         if dbfile.content_type then resp_header['Content-Type']=dbfile.content_type end
         if dbfile.file_size then resp_header['Content-Length']=dbfile.file_size end
         ngx.say(dbfile:read())
@@ -212,9 +238,6 @@ function _M.post()
     f:update_md5()
     f:update_meta(meta)
 
---    debug(meta)
-    debug(f)
-
     --写入mysql
     local db, err = mysql:new()
     if not db then
@@ -250,10 +273,11 @@ function _M.post()
 --        ngx.say("bad result: ", err, ": ", errcode, ": ", sqlstate, ".")
 --        return
 --    end
---    local result =  {}
---    result.filename = mate["filename"]
---    result.savePath = bn.."/"..mate["filename"]
---    ngx.print(cjson.encode(meta))
+    local result =  {}
+    result["filename"] = filename
+    result["savepath"] = bn.."/"..filename
+    debug(ngx.var)
+    ngx.print(cjson.encode(result))
     ngx.exit(200)
 end
 
