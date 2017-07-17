@@ -127,15 +127,14 @@ end
 function _M.post()
     local uri = ngx_var.uri
     local f, err
-    local m, err = ngx.re.match(uri, "/(?<bn>.*?)/(?<filename>[A-Za-z0-9_/.]+)")
+    --local m, err = ngx.re.match(uri, "/(?<bn>.*?)/(?<filename>[A-Za-z0-9_/.]+)")
     local ext
-    if not m then
-        ngx.exit(404)
-    end
+    --if not m then
+    --    ngx.exit(404)
+    --end
 
-    local bn = m["bn"]
-    local filename = m["filename"]
-
+    --local bn = m["bn"]
+    --local filename = m["filename"]
 
 --    if not bn then
 --      bn = "default"
@@ -144,8 +143,10 @@ function _M.post()
 --      filename = ngx.md5( bn.. ngx.now())
 --    end
 --    ngx.say(filename)
+
+    bn = "default"
     local form, err = upload:new()
-    local db,err = mysql:new()
+
     local blob = ""
     local originFileName = ""
 
@@ -157,16 +158,8 @@ function _M.post()
 
     form:set_timeout(6000)
     local obj = mongoOperate:new(bn)
+
     local meta = {}
-    f = obj:get(filename)
-    if not f then
-        f, err = obj:put(filename)
-    end
-    if not f then
-        ngx.log(ngx.ERR, "failed to put object: ", err)
-        ngx.exit(500)
-        return
-    end
 
     --读取文件内容
     while true do
@@ -195,13 +188,32 @@ function _M.post()
         end
     end
 
-    --更新文件
-    local fres = f:write(blob, 0)
+    --写入mongodb
+    --f = obj:get(filename)
+    --if not f then
+        --f, err = obj:put(filename)
+    --end
+    --ngx.say(originFileName)
 
+    filename = ngx.md5( bn.. ngx.time()).."."..ext
+
+    f, err = obj:put(filename)
+    if not f then
+        ngx.log(ngx.ERR, "failed to put object: ", err)
+        ngx.exit(500)
+        return
+    end
+
+    --更新文件
+
+    local size = f:write(blob, 0) --返回文件大小
     --更新文件名
     --meta["filename"] = ngx.md5( bn.. ngx.now()).."."..ext
     f:update_md5()
     f:update_meta(meta)
+
+--    debug(meta)
+--    debug(f)
 
     --写入mysql
     local db, err = mysql:new()
@@ -223,7 +235,7 @@ function _M.post()
     --ngx.say("connected to mysql.")
 
     local insertSQL = "INSERT INTO `db_filesystem`.`fs_attachment` ( `type`,  `name`,  `size`,  `savepath`,  `savename`,  `ext`,  `hash`,`create_time`,`update_time`) "..
-    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..f['file_size']..",'"..bn.."/"..filename.."','"..filename.."','"..ext.."','hash',"..ngx.time()..","..ngx.time()..");"
+    "VALUES  ('"..meta["contentType"].."','"..originFileName.."',"..size..",'"..bn.."/"..filename.."','"..filename.."','"..ext.."','hash',"..ngx.time()..","..ngx.time()..");"
     ngx.log(ngx.ERR,insertSQL)
     local res, err, errcode, sqlstate =  db:query(insertSQL)
     if not res then
